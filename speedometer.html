@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title> Pierre Marie Curie Speedometer with Velocity-Time Graph</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto 20px;
+    }
+    #readout {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Speedometer (m/s) with Velocity-Time Graph</h2>
+  <div id="readout">Speed: 0.00 m/s</div>
+  <canvas id="dashboard" width="500" height="500"></canvas>
+  <canvas id="graph" width="500" height="250" style="border:1px solid #ccc;"></canvas>
+
+  <script>
+    const dashboard = document.getElementById('dashboard');
+    const graph = document.getElementById('graph');
+    const readout = document.getElementById('readout');
+    const ctxDash = dashboard.getContext('2d');
+    const ctxGraph = graph.getContext('2d');
+
+    const centerX = dashboard.width / 2;
+    const centerY = dashboard.height / 2;
+    const radius = 180;
+    const maxSpeed = 20; // m/s
+    const accel = 4; // m/s²
+    const accelDuration = 5; // seconds
+    const brakeDuration = 5; // seconds
+    const totalDuration = accelDuration + brakeDuration;
+
+    const startTime = performance.now();
+    let graphPoints = [];
+
+    function drawDial() {
+      ctxDash.clearRect(0, 0, dashboard.width, dashboard.height);
+      ctxDash.beginPath();
+      ctxDash.arc(centerX, centerY, radius, 0.75 * Math.PI, 0.25 * Math.PI);
+      ctxDash.lineWidth = 5;
+      ctxDash.strokeStyle = '#333';
+      ctxDash.stroke();
+
+      ctxDash.font = '16px Arial';
+      ctxDash.fillStyle = '#000';
+      for (let i = 0; i <= maxSpeed; i += 2) {
+        const angle = 0.75 * Math.PI + (i / maxSpeed) * 1.5 * Math.PI;
+        const x = centerX + (radius - 20) * Math.cos(angle);
+        const y = centerY + (radius - 20) * Math.sin(angle);
+        ctxDash.fillText(i + ' m/s', x - 20, y + 5);
+      }
+
+      ctxDash.font = '20px Arial';
+      ctxDash.fillText('Speedometer', centerX - 60, centerY + radius + 30);
+    }
+
+    function drawNeedle(speed) {
+      const angle = 0.75 * Math.PI + (speed / maxSpeed) * 1.5 * Math.PI;
+      const x = centerX + (radius - 40) * Math.cos(angle);
+      const y = centerY + (radius - 40) * Math.sin(angle);
+      ctxDash.beginPath();
+      ctxDash.moveTo(centerX, centerY);
+      ctxDash.lineTo(x, y);
+      ctxDash.strokeStyle = 'red';
+      ctxDash.lineWidth = 4;
+      ctxDash.stroke();
+
+      ctxDash.beginPath();
+      ctxDash.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+      ctxDash.fillStyle = 'black';
+      ctxDash.fill();
+    }
+
+    function drawGraph() {
+      ctxGraph.clearRect(0, 0, graph.width, graph.height);
+
+      // Axes
+      ctxGraph.beginPath();
+      ctxGraph.moveTo(40, 10);
+      ctxGraph.lineTo(40, 230); // y-axis
+      ctxGraph.lineTo(490, 230); // x-axis
+      ctxGraph.strokeStyle = '#000';
+      ctxGraph.stroke();
+
+      // Labels
+      ctxGraph.font = '14px Arial';
+      ctxGraph.fillText('Velocity (m/s)', 10, 20);
+      ctxGraph.fillText('Time (s)', 440, 245);
+
+      // Plot points
+      ctxGraph.beginPath();
+      ctxGraph.moveTo(40, 230);
+      for (let i = 0; i < graphPoints.length; i++) {
+        const t = graphPoints[i].t;
+        const v = graphPoints[i].v;
+        const x = 40 + (t / totalDuration) * 450;
+        const y = 230 - (v / maxSpeed) * 200;
+        ctxGraph.lineTo(x, y);
+      }
+      ctxGraph.strokeStyle = 'blue';
+      ctxGraph.lineWidth = 2;
+      ctxGraph.stroke();
+    }
+
+    function animate() {
+      const now = performance.now();
+      const elapsed = (now - startTime) / 1000; // seconds
+      let speedMS;
+
+      if (elapsed <= accelDuration) {
+        speedMS = accel * elapsed;
+      } else if (elapsed <= totalDuration) {
+        const tBrake = elapsed - accelDuration;
+        speedMS = maxSpeed - (accel * tBrake);
+      } else {
+        speedMS = 0;
+      }
+
+      speedMS = Math.max(0, Math.min(speedMS, maxSpeed));
+      graphPoints.push({ t: elapsed, v: speedMS });
+
+      readout.textContent = `Speed: ${speedMS.toFixed(2)} m/s`;
+
+      drawDial();
+      drawNeedle(speedMS);
+      drawGraph();
+
+      if (elapsed < totalDuration) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    animate();
+  </script>
+
+</body>
+</html>

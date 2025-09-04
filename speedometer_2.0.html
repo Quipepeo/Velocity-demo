@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Speedometer with Two Velocity-Time Runs</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto 20px;
+    }
+    #readout {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Speedometer (m/s) with Two Velocity-Time Runs</h2>
+  <div id="readout">Speed: 0.00 m/s</div>
+  <canvas id="dashboard" width="500" height="500"></canvas>
+  <canvas id="graph" width="500" height="250" style="border:1px solid #ccc;"></canvas>
+
+  <script>
+    const dashboard = document.getElementById('dashboard');
+    const graph = document.getElementById('graph');
+    const readout = document.getElementById('readout');
+    const ctxDash = dashboard.getContext('2d');
+    const ctxGraph = graph.getContext('2d');
+
+    const centerX = dashboard.width / 2;
+    const centerY = dashboard.height / 2;
+    const radius = 180;
+    const maxSpeed = 20; // m/s
+
+    // First run parameters
+    const accel1 = 4; // m/s²
+    const accelDuration1 = 5; // seconds
+    const brakeDuration1 = 5; // seconds
+    const totalDuration1 = accelDuration1 + brakeDuration1;
+
+    // Second run parameters
+    const accel2 = 10; // m/s²
+    const accelDuration2 = 2; // seconds
+    const brakeDuration2 = 2; // seconds
+    const totalDuration2 = accelDuration2 + brakeDuration2;
+
+    const totalDuration = Math.max(totalDuration1, totalDuration2);
+
+    const startTime = performance.now();
+    let graphPoints1 = [];
+    let graphPoints2 = [];
+
+    function drawDial() {
+      ctxDash.clearRect(0, 0, dashboard.width, dashboard.height);
+      ctxDash.beginPath();
+      ctxDash.arc(centerX, centerY, radius, 0.75 * Math.PI, 0.25 * Math.PI);
+      ctxDash.lineWidth = 5;
+      ctxDash.strokeStyle = '#333';
+      ctxDash.stroke();
+
+      ctxDash.font = '16px Arial';
+      ctxDash.fillStyle = '#000';
+      for (let i = 0; i <= maxSpeed; i += 2) {
+        const angle = 0.75 * Math.PI + (i / maxSpeed) * 1.5 * Math.PI;
+        const x = centerX + (radius - 20) * Math.cos(angle);
+        const y = centerY + (radius - 20) * Math.sin(angle);
+        ctxDash.fillText(i + ' m/s', x - 20, y + 5);
+      }
+
+      ctxDash.font = '20px Arial';
+      ctxDash.fillText('Speedometer', centerX - 60, centerY + radius + 30);
+    }
+
+    function drawNeedle(speed) {
+      const angle = 0.75 * Math.PI + (speed / maxSpeed) * 1.5 * Math.PI;
+      const x = centerX + (radius - 40) * Math.cos(angle);
+      const y = centerY + (radius - 40) * Math.sin(angle);
+      ctxDash.beginPath();
+      ctxDash.moveTo(centerX, centerY);
+      ctxDash.lineTo(x, y);
+      ctxDash.strokeStyle = 'red';
+      ctxDash.lineWidth = 4;
+      ctxDash.stroke();
+
+      ctxDash.beginPath();
+      ctxDash.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+      ctxDash.fillStyle = 'black';
+      ctxDash.fill();
+    }
+
+    function drawGraph() {
+      ctxGraph.clearRect(0, 0, graph.width, graph.height);
+
+      // Axes
+      ctxGraph.beginPath();
+      ctxGraph.moveTo(40, 10);
+      ctxGraph.lineTo(40, 230); // y-axis
+      ctxGraph.lineTo(490, 230); // x-axis
+      ctxGraph.strokeStyle = '#000';
+      ctxGraph.stroke();
+
+      // Labels
+      ctxGraph.font = '14px Arial';
+      ctxGraph.fillText('Velocity (m/s)', 10, 20);
+      ctxGraph.fillText('Time (s)', 440, 245);
+
+      // First run (red line)
+      ctxGraph.beginPath();
+      ctxGraph.moveTo(40, 230);
+      for (let i = 0; i < graphPoints1.length; i++) {
+        const t = graphPoints1[i].t;
+        const v = graphPoints1[i].v;
+        const x = 40 + (t / totalDuration) * 450;
+        const y = 230 - (v / maxSpeed) * 200;
+        ctxGraph.lineTo(x, y);
+      }
+      ctxGraph.strokeStyle = 'red';
+      ctxGraph.lineWidth = 2;
+      ctxGraph.stroke();
+
+      // Second run (blue line)
+      ctxGraph.beginPath();
+      ctxGraph.moveTo(40, 230);
+      for (let i = 0; i < graphPoints2.length; i++) {
+        const t = graphPoints2[i].t;
+        const v = graphPoints2[i].v;
+        const x = 40 + (t / totalDuration) * 450;
+        const y = 230 - (v / maxSpeed) * 200;
+        ctxGraph.lineTo(x, y);
+      }
+      ctxGraph.strokeStyle = 'blue';
+      ctxGraph.lineWidth = 2;
+      ctxGraph.stroke();
+    }
+
+    function animate() {
+      const now = performance.now();
+      const elapsed = (now - startTime) / 1000; // seconds
+
+      // First run speed
+      let speed1;
+      if (elapsed <= accelDuration1) {
+        speed1 = accel1 * elapsed;
+      } else if (elapsed <= totalDuration1) {
+        const tBrake = elapsed - accelDuration1;
+        speed1 = maxSpeed - (accel1 * tBrake);
+      } else {
+        speed1 = 0;
+      }
+      speed1 = Math.max(0, Math.min(speed1, maxSpeed));
+
+      // Second run speed
+      let speed2;
+      if (elapsed <= accelDuration2) {
+        speed2 = accel2 * elapsed;
+      } else if (elapsed <= totalDuration2) {
+        const tBrake = elapsed - accelDuration2;
+        speed2 = maxSpeed - (accel2 * tBrake);
+      } else {
+        speed2 = 0;
+      }
+      speed2 = Math.max(0, Math.min(speed2, maxSpeed));
+
+      // Store points
+      graphPoints1.push({ t: elapsed, v: speed1 });
+      graphPoints2.push({ t: elapsed, v: speed2 });
+
+      // Update readout for first run
+      readout.textContent = `Speed: ${speed1.toFixed(2)} m/s`;
+
+      // Draw
+      drawDial();
+      drawNeedle(speed1);
+      drawGraph();
+
+      if (elapsed < totalDuration) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    animate();
+  </script>
+
+</body>
+</html>
